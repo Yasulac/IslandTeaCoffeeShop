@@ -137,19 +137,19 @@ const CoffeeMenuManager = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#fff', flex: 1 },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
-  input: { borderBottomWidth: 1, marginBottom: 10, padding: 5 },
+  container: { padding: 20, backgroundColor: '#121212', flex: 1 },
+  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, color: '#fff' },
+  input: { borderBottomWidth: 1, marginBottom: 10, padding: 5, color: '#fff', borderColor: '#fff' },
   imageButton: { backgroundColor: '#007AFF', padding: 15, borderRadius: 10, alignItems: 'center', marginVertical: 10 },
   addButton: { backgroundColor: '#28A745', padding: 15, borderRadius: 10, alignItems: 'center', marginVertical: 10 },
   buttonText: { color: 'white', fontWeight: 'bold' },
   previewImage: { width: 100, height: 100, alignSelf: 'center', marginTop: 10, borderRadius: 10 },
-  card: { flex: 1, backgroundColor: '#f9f9f9', borderRadius: 10, padding: 10, margin: 10, alignItems: 'center' },
+  card: { flex: 1, backgroundColor: '#333333', borderRadius: 10, padding: 10, margin: 10, alignItems: 'center' },
   image: { width: 100, height: 100, borderRadius: 10 },
-  coffeeName: { fontSize: 16, fontWeight: 'bold', marginTop: 5 },
-  price: { fontSize: 14, color: 'green', marginBottom: 5 },
+  coffeeName: { fontSize: 16, fontWeight: 'bold', marginTop: 5, color: '#fff' },
+  price: { fontSize: 14, color: '#28A745', marginBottom: 5 },
   buttonGroup: { flexDirection: 'row', marginTop: 5 },
-  editButton: { backgroundColor: 'blue', padding: 5, borderRadius: 5, marginRight: 5 },
+  editButton: { backgroundColor: '#4D55CC', padding: 5, borderRadius: 5, marginRight: 5 },
   deleteButton: { backgroundColor: 'red', padding: 5, borderRadius: 5 },
 });
 
