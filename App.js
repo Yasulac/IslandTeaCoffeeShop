@@ -1,83 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, Image, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 
-const CoffeeMenuManager = () => {
-  const [menu, setMenu] = useState([]);
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [image, setImage] = useState(null);
+const CoffeeApp = () => {
+  const [coffeeList, setCoffeeList] = useState([]);
+  const [search, setSearch] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [editItem, setEditItem] = useState(null);
-  
+  const [currentCoffeeId, setCurrentCoffeeId] = useState(null);
+  const [newCoffee, setNewCoffee] = useState({ name: '', type: '', price: '', image: null });
+
   useEffect(() => {
-    loadMenu();
+    loadCoffeeData();
   }, []);
 
-  const loadMenu = async () => {
-    try {
-      const data = await AsyncStorage.getItem('menu');
-      if (data) setMenu(JSON.parse(data));
-    } catch (error) {
-      console.error('Error loading menu:', error);
+  const loadCoffeeData = async () => {
+    const data = await AsyncStorage.getItem('coffeeList');
+    if (data) {
+      setCoffeeList(JSON.parse(data));
     }
   };
-
-  const saveMenu = async (newMenu) => {
-    try {
-      await AsyncStorage.setItem('menu', JSON.stringify(newMenu));
-    } catch (error) {
-      console.error('Error saving menu:', error);
-    }
-  };
-
-  const addMenuItem = () => {
-    if (!name || !price || !image) {
-      Alert.alert('Error', 'Please enter all fields and select an image.');
-      return;
-    }
-    const newItem = { id: Date.now().toString(), name, price: parseFloat(price), image };
-    const updatedMenu = [...menu, newItem];
-    setMenu(updatedMenu);
-    saveMenu(updatedMenu);
-    resetForm();
-  };
-
-  const editMenuItem = (item) => {
-    setEditMode(true);
-    setEditItem(item);
-    setName(item.name);
-    setPrice(item.price.toString());
-    setImage(item.image);
-  };
-
-  const updateMenuItem = () => {
-    if (!name || !price || !image) {
-      Alert.alert('Error', 'Please enter all fields and select an image.');
-      return;
-    }
-    const updatedMenu = menu.map(item => item.id === editItem.id ? { ...item, name, price: parseFloat(price), image } : item);
-    setMenu(updatedMenu);
-    saveMenu(updatedMenu);
-    setEditMode(false);
-    resetForm();
-  };
-
-  const deleteMenuItem = (id) => {
-    console.log("Delete function triggered for ID:", id);
-    Alert.alert('Confirm', 'Are you sure you want to delete this item?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', onPress: () => {
-          const updatedMenu = menu.filter(item => item.id !== id);
-          console.log("Updated menu after deletion:", updatedMenu);
-          setMenu(updatedMenu);
-          saveMenu(updatedMenu);
-        }
-      }
-    ]);
-  };
-  
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -86,71 +30,282 @@ const CoffeeMenuManager = () => {
       aspect: [4, 3],
       quality: 1,
     });
-
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setNewCoffee({ ...newCoffee, image: result.assets[0].uri });
     }
   };
 
-  const resetForm = () => {
-    setName('');
-    setPrice('');
-    setImage(null);
-    setEditItem(null);
-    setEditMode(false);
+  const addOrUpdateCoffee = async () => {
+    if (newCoffee.name && newCoffee.type && newCoffee.price && newCoffee.image) {
+      let updatedList;
+      if (editMode) {
+        updatedList = coffeeList.map(coffee =>
+          coffee.id === currentCoffeeId ? { ...newCoffee, id: currentCoffeeId } : coffee
+        );
+      } else {
+        const newEntry = { ...newCoffee, id: Date.now().toString(), price: parseFloat(newCoffee.price) };
+        updatedList = [...coffeeList, newEntry];
+      }
+      setCoffeeList(updatedList);
+      await AsyncStorage.setItem('coffeeList', JSON.stringify(updatedList));
+      setNewCoffee({ name: '', type: '', price: '', image: null });
+      setModalVisible(false);
+      setEditMode(false);
+    }
+  };
+  const deleteCoffee = async (id) => {
+    const updatedList = coffeeList.filter(coffee => coffee.id !== id);
+    setCoffeeList(updatedList);
+    await AsyncStorage.setItem('coffeeList', JSON.stringify(updatedList));
+  };
+
+  const editCoffee = (coffee) => {
+    setNewCoffee(coffee);
+    setCurrentCoffeeId(coffee.id);
+    setEditMode(true);
+    setModalVisible(true);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Coffee Menu Manager</Text>
-      <TextInput placeholder="Coffee Name" value={name} onChangeText={setName} style={styles.input} />
-      <TextInput placeholder="Price" value={price} onChangeText={setPrice} keyboardType="numeric" style={styles.input} />
-      <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-        <Text style={styles.buttonText}>📸 Pick Image</Text>
-      </TouchableOpacity>
-      {image && <Image source={{ uri: image }} style={styles.previewImage} />}
-      <TouchableOpacity style={styles.addButton} onPress={editMode ? updateMenuItem : addMenuItem}>
-        <Text style={styles.buttonText}>{editMode ? "✏️ Update Coffee" : "➕ Add Coffee"}</Text>
-      </TouchableOpacity>
-      <FlatList 
-        data={menu} 
-        keyExtractor={(item) => item.id} 
+      <View style={styles.header}>
+        <Text style={styles.location}>Location</Text>
+        <Text style={styles.city}>Surigao, City▼</Text>
+        <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search coffee"
+          value={search}
+          onChangeText={setSearch}
+        />
+        <TouchableOpacity style={styles.filterButton}>
+          <Ionicons name="filter" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
+      </View>
+      
+      <FlatList
+        data={coffeeList.filter(coffee => coffee.name.toLowerCase().includes(search.toLowerCase()))}
+        keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Image source={{ uri: item.image }} style={styles.image} />
-            <Text style={styles.coffeeName}>{item.name}</Text>
+            <Text style={styles.name}>{item.name}</Text>
+            <Text style={styles.type}>{item.type}</Text>
             <Text style={styles.price}>${item.price.toFixed(2)}</Text>
-            <View style={styles.buttonGroup}>
-              <TouchableOpacity onPress={() => editMenuItem(item)} style={styles.editButton}>
-                <Text style={styles.buttonText}>✏️ Edit</Text>
+            <View style={styles.cardButtons}>
+              <TouchableOpacity onPress={() => editCoffee(item)}>
+                <Text style={styles.editButton}>Edit</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => deleteMenuItem(item.id)} style={styles.deleteButton}>
-                <Text style={styles.buttonText}>🗑️ Delete</Text>
+              <TouchableOpacity onPress={() => deleteCoffee(item.id)}>
+                <Text style={styles.deleteButton}>Delete</Text>
+              </TouchableOpacity>
+
+            </View>
+          </View>
+        )}
+      />
+      <TouchableOpacity style={styles.addButton} onPress={() => { setEditMode(false); setModalVisible(true); }}>
+        <Text style={styles.addButtonText}>Add Coffee</Text>
+      </TouchableOpacity>
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{editMode ? "Edit Coffee" : "Add Coffee"}</Text>
+            <TextInput placeholder="Coffee Name" value={newCoffee.name} onChangeText={(text) => setNewCoffee({ ...newCoffee, name: text })} style={styles.input} />
+            <TextInput placeholder="Type" value={newCoffee.type} onChangeText={(text) => setNewCoffee({ ...newCoffee, type: text })} style={styles.input} />
+            <TextInput placeholder="Price" value={newCoffee.price} onChangeText={(text) => setNewCoffee({ ...newCoffee, price: text })} keyboardType="numeric" style={styles.input} />
+            <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+              <Text style={styles.buttonText}>{newCoffee.image ? "Change Image" : "Pick an Image"}</Text>
+            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.addButtonModal} onPress={addOrUpdateCoffee}>
+                <Text style={styles.buttonText}>{editMode ? "Update" : "Add"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
+                <Text style={styles.buttonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
-        )} 
-      />
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#121212', flex: 1 },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, color: '#fff' },
-  input: { borderBottomWidth: 1, marginBottom: 10, padding: 5, color: '#fff', borderColor: '#fff' },
-  imageButton: { backgroundColor: '#007AFF', padding: 15, borderRadius: 10, alignItems: 'center', marginVertical: 10 },
-  addButton: { backgroundColor: '#28A745', padding: 15, borderRadius: 10, alignItems: 'center', marginVertical: 10 },
-  buttonText: { color: 'white', fontWeight: 'bold' },
-  previewImage: { width: 100, height: 100, alignSelf: 'center', marginTop: 10, borderRadius: 10 },
-  card: { flex: 1, backgroundColor: '#333333', borderRadius: 10, padding: 10, margin: 10, alignItems: 'center' },
-  image: { width: 100, height: 100, borderRadius: 10 },
-  coffeeName: { fontSize: 16, fontWeight: 'bold', marginTop: 5, color: '#fff' },
-  price: { fontSize: 14, color: '#28A745', marginBottom: 5 },
-  buttonGroup: { flexDirection: 'row', marginTop: 5 },
-  editButton: { backgroundColor: '#4D55CC', padding: 5, borderRadius: 5, marginRight: 5 },
-  deleteButton: { backgroundColor: 'red', padding: 5, borderRadius: 5 },
+  container: {
+    flex: 1,
+    backgroundColor: '#F3F3F3',
+  
+  },
+  header: {
+    paddingTop: 40,
+    paddingHorizontal: 20,
+    backgroundColor: '#1E1E1E',
+    paddingBottom: 20,
+  },
+  location: {
+    color: '#AAA',
+    fontSize: 14,
+    fontFamily: 'Sora',
+
+  },
+  city: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: 'Sora',
+  },
+  searchContainer: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    borderRadius: 10,
+    padding: 10,
+    
+    
+  },
+  searchBar: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: 'Sora',
+
+  },
+  filterButton: {
+    backgroundColor: '#C67C4E',
+    padding: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addButton: {
+    backgroundColor: '#C67C4E',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginVertical: 10,
+  },
+  addButtonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: 'Sora',
+
+  },
+  card: {
+    backgroundColor: '#FFF',
+    margin: 10,
+    padding: 10,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 5,
+    width: '45%',
+  },
+  image: {
+    width: '100%',
+    height: 120,
+    borderRadius: 10,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 5,
+    fontFamily: 'Sora',
+
+  },
+  type: {
+    color: '#555',
+    fontSize: 14,
+    fontFamily: 'Sora',
+
+  },
+  price: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#C67C4E',
+    marginTop: 5,
+    fontFamily: 'Sora',
+
+  },
+  deleteButton: {
+    color: 'red',
+    marginTop: 5,
+    textAlign: 'center',
+   
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '90%',
+    backgroundColor: '#FFF',
+    borderRadius: 15,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+    fontFamily: 'Sora',
+
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#DDD',
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 5,
+  },
+  imagePicker: {
+    backgroundColor: '#C67C4E',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  buttonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: 'Sora',
+
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  addButtonModal: {
+    flex: 1,
+    backgroundColor: '#C67C4E',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginRight: 5,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#888',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginLeft: 5,
+  },
+  cardButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
+  editButton: { color: 'blue', fontWeight: 'bold', paddingHorizontal: 10 },
+  deleteButton: { color: 'red', fontWeight: 'bold', paddingHorizontal: 10 },
 });
 
-export default CoffeeMenuManager;
+
+export default CoffeeApp;
